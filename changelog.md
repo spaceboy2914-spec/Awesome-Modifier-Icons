@@ -1,3 +1,7 @@
+# 1.0.11
+- Code Improvements
+- New Icon
+
 # 1.0.10
 - iOS support
 

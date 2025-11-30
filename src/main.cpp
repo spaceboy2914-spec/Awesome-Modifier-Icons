@@ -2,6 +2,12 @@
 #include <Geode/modify/EffectGameObject.hpp>
 #include <Geode/modify/EditButtonBar.hpp>
 
+constexpr int D_BLOCK = 1755;
+constexpr int J_BLOCK = 1813;
+constexpr int S_BLOCK = 1829;
+constexpr int H_BLOCK = 1859;
+constexpr int F_BLOCK = 2866;
+
 using namespace geode::prelude;
 
 class $modify(MyEffectGameObject, EffectGameObject) {
@@ -9,100 +15,67 @@ class $modify(MyEffectGameObject, EffectGameObject) {
 	void customSetup() {
 		EffectGameObject::customSetup();
 
-		switch(m_objectID){
+		static const std::unordered_map<int, std::string> icons = {
+			{D_BLOCK, "d_block.png"_spr},
+			{J_BLOCK, "j_block.png"_spr},
+			{S_BLOCK, "s_block.png"_spr},
+			{H_BLOCK, "h_block.png"_spr},
+			{F_BLOCK, "f_block.png"_spr}
+		};
 
-			case 1755: {
-				setIcon("d_block.png"_spr);
-				break;
-			}
-			case 1813: {
-				setIcon("j_block.png"_spr);
-				break;
-			}
-			case 1829: {
-				setIcon("s_block.png"_spr);
-				break;
-			}
-			case 1859: {
-				setIcon("h_block.png"_spr);
-				break;
-			}
-			case 2866: {
-				setIcon("f_block.png"_spr);
-				break;
-			}
+		auto it = icons.find(m_objectID);
+		if (it != icons.end()) {
+			setIcon(it->second);
 		}
 	}
 
-	void setIcon(std::string texture){
-		
-		if (!Mod::get()->getSettingValue<bool>("solid-border")) {
-			if(CCSprite* newSpr = CCSprite::createWithSpriteFrameName("edit_eCollisionBlock01_001.png")) {
-				setTexture(newSpr->getTexture());
-				setTextureRect(newSpr->getTextureRect());
-			}
-			else{
-				log::info("missing collision block sprite");
-			}
-		}
-		
+	void setIcon(const std::string& texture){
 		setCascadeColorEnabled(true);
 		setCascadeOpacityEnabled(true);
 
-		if(auto spr = CCSprite::create(texture.c_str())) {
-			spr->setScale(0.9f);
-			addChildAtPosition(spr, Anchor::Center);
-			
-			scheduleOnce(schedule_selector(MyEffectGameObject::getLabel), 0);
+		if (!Mod::get()->getSettingValue<bool>("solid-border")) {
+			auto newSpr = CCSprite::createWithSpriteFrameName("edit_eCollisionBlock01_001.png");
+			setTexture(newSpr->getTexture());
+			setTextureRect(newSpr->getTextureRect());
 		}
-		else{
-			log::info("missing modifier sprite");
-		}
-		
-	}
 
-	void getLabel(float dt){
+		auto spr = CCSprite::create(texture.c_str());
+		spr->setScale(0.9f);
+		addChildAtPosition(spr, Anchor::Center);
 
-		if (CCLabelBMFont* label = this->getChildByType<CCLabelBMFont>(0)) {
-			if (Mod::get()->getSettingValue<bool>("show-letter")) {
-				label->setPosition({2, getContentHeight()});
-				label->setScale(0.3f);
-				label->setAnchorPoint({0, 1});
+		runAction(CallFuncExt::create([this] {
+			if (auto label = getChildByType<CCLabelBMFont>(0)) {
+				label->setVisible(Mod::get()->getSettingValue<bool>("show-letter"));
+				if (label->isVisible()) {
+					label->setPosition({2, getContentHeight()});
+					label->setScale(0.3f);
+					label->setAnchorPoint({0, 1});
+				}
 			}
-			else {
-				label->setVisible(false);
-			}
-		}
+		}));
 	}
 };
 
 class $modify(MyEditButtonBar, EditButtonBar) {
-    
+
     void loadFromItems(CCArray* items, int c, int r, bool unkBool) {
+		if (m_tabIndex != 5) return EditButtonBar::loadFromItems(items, c, r, unkBool);
 
 		if (Mod::get()->getSettingValue<bool>("move-f-block")) {
-			int idx = 0;
 			int hIndex = -1;
+			CCNode* fBlock = nullptr;
 
-			Ref<CCObject> fItem = nullptr;
-
-			for (CCNode* item : CCArrayExt<CCNode*>(items)) {
-				if (CreateMenuItem* menuItem = typeinfo_cast<CreateMenuItem*>(item)) {
-					if (menuItem->m_objectID == 2866) {
-						fItem = menuItem;
-						if (hIndex != -1) break;
-					}
-					if (menuItem->m_objectID == 1859) {
-						hIndex = idx;
-						if (fItem) break;
-					}
+			for (int i = 0; i < items->count(); ++i) {
+				if (auto menuItem = typeinfo_cast<CreateMenuItem*>(items->objectAtIndex(i))) {
+					if (menuItem->m_objectID == F_BLOCK) fBlock = menuItem;
+					if (menuItem->m_objectID == H_BLOCK) hIndex = i;
+					if (fBlock && hIndex != -1) break;
 				}
-				idx++;
 			}
 
-			if (fItem) {
-				items->removeObject(fItem, false);
-				items->insertObject(fItem, hIndex + 1);
+			if (fBlock) {
+				items->removeObject(fBlock);
+				items->insertObject(fBlock, hIndex + 1);
 			}
 		}
 
